@@ -20,6 +20,8 @@ public class FHTTPService {
     
     public let workQueue: DispatchQueue
     
+    public var userAgent: String = "ForceHTTP"
+    
     internal typealias Canceller = () -> Void
     
     internal func onSessionStart(_ session: FHTTPSession) {
@@ -41,12 +43,12 @@ public class FHTTPService {
     }
 
     internal func onSessionReceiveContent(_ session: FHTTPSession) {
-        precondition(session.state == .responseContentReceive)
+        precondition(session.state == .responseBodyReceive)
         
         session.connection!.receiveLoop(error: nil)
     }
 
-    private func update() {
+    internal func update() {
         sessions.forEach { session in
             switch session.state {
             case .connecting:
@@ -75,7 +77,7 @@ public class FHTTPService {
                 ($0.state == .connecting ||
                     $0.state == .active) }
         if possibleConnections.count == 0 {
-            openConnection(request: session.request)
+            openConnection(request: session.currentRequest)
             return
         }
         

@@ -8,26 +8,55 @@ public class FHTTPSession {
         case inited
         case connecting
         case connected
-        case requestHeaderSent
+        case requestBodySend
+        case responseHeaderReceive
         case responseHeaderReceived
-        case responseContentReceive
+        case responseBodyReceive
         case completed
         case failed
         case closed
+    }
+    
+    public struct RedirectEntry {
+        public var request: FHTTPRequest
+        public var response: FHTTPResponse
     }
    
     public let service: FHTTPService
     private let workQueue: DispatchQueue
     public let callbackQueue: DispatchQueue
     
-    public let request: FHTTPRequest
+    public private(set) var request: FHTTPRequest
+    
+    public private(set) var currentRequest: FHTTPRequest {
+        get {
+            guard let last = redirects.last else {
+                return request
+            }
+            return last.request
+        }
+        set {
+            if redirects.count == 0 {
+                request = newValue
+                return
+            }
+            
+            var entry = redirects.last!
+            entry.request = newValue
+            redirects[redirects.count - 1] = entry
+        }
+    }
+    
+    public private(set) var sentBodySize: Int
     
     public private(set) var state: State
     
     private typealias Handler = (FHTTPResponse?, Error?) -> Void
     private var handler: Handler?
     
-    internal private(set) var response: FHTTPResponse?
+    public private(set) var redirects: [RedirectEntry] = []
+    
+    public private(set) var response: FHTTPResponse?
     
     internal init(service: FHTTPService,
                   request: FHTTPRequest)
@@ -37,6 +66,7 @@ public class FHTTPSession {
         self.callbackQueue = DispatchQueue.main
         self.request = request
         self.state = .inited
+        self.sentBodySize = 0
     }
     
     deinit {
@@ -59,6 +89,7 @@ public class FHTTPSession {
             _close()
         }
     }
+    
     private func _close() {
         state = .closed
         
@@ -67,15 +98,30 @@ public class FHTTPSession {
         self.handler = nil
     }
     
-    
     internal var connection: FHTTPConnection? {
         return service.connections.first { $0.session === self }
     }
     
     internal func isSameEndPoint(_ connection: FHTTPConnection) -> Bool {
+        let request = self.currentRequest
         return request.scheme == connection.scheme &&
             request.host == connection.host &&
             request.connectingPort == connection.port
+    }
+    
+    private func redirect(url: URL) {
+        precondition(state == .completed)
+        
+        redirects.append(RedirectEntry(request: currentRequest, response: response!))
+        
+        state = .connecting
+        response = nil
+        sentBodySize = 0
+        
+        let request = FHTTPRequest(url: url)
+        self.currentRequest = request
+        
+        service.update()
     }
     
     internal func onAttachConnection(_ connection: FHTTPConnection) {
@@ -85,26 +131,56 @@ public class FHTTPSession {
         state = .connected
     }
 
-    internal func onRequestHeaderSend() -> Data {
+    internal func onRequestHeaderSend() throws -> Data {
         print("onRequestHeaderSend")
-        var host: String = request.host
-        if let port = request.specifiedPort {
-            host += ":" + "\(port)"
+        
+        let request = self.currentRequest
+        
+        if request.postBody != nil && request.method != .post {
+            throw FHTTPError.nonPostRequestHaveBody
         }
         
-        var lines = [String]()
+        var header = request.header
+        
+        header["Connection"] = "keep-alive"
+        header["User-Agent"] = service.userAgent
+        
+        self.currentRequest.header = header
+        
+        var lines: [String] = []
+        
         lines.append("\(request.method) \(request.path) HTTP/1.1")
-        lines.append("Host: \(host)")
-        lines.append("Connection: close")
-        lines.append("User-Agent: ForthHTTP")
+        header.entries.forEach { entry in
+            lines.append(entry.name + ": " + entry.value)
+        }
+
         lines += ["", ""]
         
-        let header: String = lines.joined(separator: "\r\n")
-        let data = header.data(using: String.Encoding.utf8)!
+        let headerString: String = lines.joined(separator: "\r\n")
+        let data = headerString.data(using: String.Encoding.utf8)!
         
-        self.state = .requestHeaderSent
+        if request.postBody != nil {
+            self.state = .requestBodySend
+        } else {
+            self.state = .responseHeaderReceive
+        }
         
         return data
+    }
+    
+    internal func onRequestBodySend() -> Data? {
+        let data = request.postBody!
+        let chunkSize = min(data.count - sentBodySize,
+                            1024 * 1024)
+        if chunkSize == 0 {
+            state = .responseHeaderReceive
+            return nil
+        }
+        
+        let startSize = sentBodySize
+        sentBodySize += chunkSize
+        
+        return data[startSize..<sentBodySize]
     }
     
     internal func onResponseHeader(_ response: FHTTPResponse) {
@@ -112,11 +188,11 @@ public class FHTTPSession {
         self.response = response
         self.state = .responseHeaderReceived
         
-        self.state = .responseContentReceive
+        self.state = .responseBodyReceive
         self.service.onSessionReceiveContent(self)
     }
     
-    internal func onResponseContent(_ data: Data) {
+    internal func onResponseBody(_ data: Data) {
         print("onResponseContent")
         self.response!.data = data
         self.state = .completed
@@ -127,12 +203,40 @@ public class FHTTPSession {
 
         precondition(state == .completed)
         
+        let response = self.response!
+        let code = response.statusCode
+        
+        var error: Error? = nil
+        
+        if 200 <= code && code < 300 {
+            //
+        } else if 300 <= code && code < 400 {
+            if let location = response.header["Location"],
+                let url = URL(string: location)
+            {
+                if redirects.count < 16 {
+                    redirect(url: url)
+                    return
+                }
+                
+                error = FHTTPError.tooManyRedirect
+            }
+        } else {
+            error = FHTTPError.statusCodeFailure(response)
+        }
+        
         callbackQueue.async {
             let handler = self.workQueue.sync {
                 return self.handler
             }
             
-            handler?(self.response!, nil)
+            if let error = error {
+                handler?(nil, error)
+            } else {
+                handler?(response, nil)
+            }
+            
+            self.close()
         }
     }
     
@@ -149,5 +253,4 @@ public class FHTTPSession {
             self.close()
         }
     }
-    
 }

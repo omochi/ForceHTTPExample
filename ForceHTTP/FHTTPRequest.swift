@@ -1,14 +1,29 @@
 public struct FHTTPRequest {
     public var url: URL
-    public var method: FHTTPMethod = FHTTPMethod.get
+    public var method: FHTTPMethod
+    public var header: FHTTPHeader
     
-    public init(url: URL) {
+    public private(set) var postBody: Data?
+    
+    public init(url: URL,
+                method: FHTTPMethod = .get) {
         self.url = url
+        self.method = method
+        self.header = FHTTPHeader()
+        
+        header["Host"] = requestHeaderHost
     }
     
-    public func session(service: FHTTPService = FHTTPService.shared) -> FHTTPSession
+    public func session(service: FHTTPService = FHTTPService.shared)
+        -> FHTTPSession
     {
         return FHTTPSession(service: service, request: self)
+    }
+    
+    public mutating func setPostBody(contentType: String, data: Data) {
+        self.header["Content-Type"] = contentType
+        self.header["Content-Length"] = String(data.count)
+        self.postBody = data
     }
 
     internal var scheme: FHTTPScheme {
@@ -41,6 +56,16 @@ public struct FHTTPRequest {
 
     internal var connectingPort: UInt16 {
         return specifiedPort ?? scheme.defaultPort
+    }
+    
+    internal var requestHeaderHost: String {
+        var host: String = self.host
+        
+        if connectingPort != scheme.defaultPort {
+            host += ":" + String(connectingPort)
+        }
+        
+        return host
     }
     
     internal var path: String {

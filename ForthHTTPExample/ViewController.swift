@@ -11,15 +11,13 @@ import ForceHTTP
 
 public class ViewController: UIViewController {
    
-    private let url = URL(string: "http://swift-playground.kishikawakatsumi.com")!
-    
-    
     public override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view, typically from a nib.
     }
 
     @IBAction public func onATSButton() {
+        let url = URL(string: "http://swift-playground.kishikawakatsumi.com")!
         let session = URLSession(configuration: URLSessionConfiguration.ephemeral,
                                  delegate: nil,
                                  delegateQueue: OperationQueue.main)
@@ -33,7 +31,17 @@ public class ViewController: UIViewController {
     }
 
     @IBAction public func onFHTTP() {
-        let request = FHTTPRequest(url: url)
+        let code = """
+let a = 1 + 1
+print(String(a))
+"""
+        var form = FHTTPForm()
+        form.entries.append(FHTTPForm.Entry(name: "toolchain_version", value: "4.1.1"))
+        form.entries.append(FHTTPForm.Entry(name: "code", value: code))
+        
+        var request = FHTTPRequest(url: URL(string: "https://swift-playground.kishikawakatsumi.com/run")!,
+                                   method: .post)
+        request.setPostBody(contentType: FHTTPForm.contentType, data: form.postBody())
         let session = request.session()
         session.start { (response, error) in
             if let error = error {

@@ -6,6 +6,9 @@ public enum FHTTPError : Error, CustomStringConvertible {
     case protocolViolation
     case abnormalTermination
     case connectionClosed
+    case statusCodeFailure(FHTTPResponse)
+    case tooManyRedirect
+    case nonPostRequestHaveBody
     
     public var description: String {
         switch self {
@@ -23,6 +26,12 @@ public enum FHTTPError : Error, CustomStringConvertible {
             return "abnormal termination"
         case .connectionClosed:
             return "connection closed"
+        case .statusCodeFailure(let response):
+            return "\(response.statusCode) \(response.statusMessage)"
+        case .tooManyRedirect:
+            return "too many redirect"
+        case .nonPostRequestHaveBody:
+            return "non post request have body"
         }
     }
 }

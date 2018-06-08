@@ -13,9 +13,9 @@ internal class FHTTPConnection {
     }
     
     internal init(queue: DispatchQueue,
-                scheme: FHTTPScheme,
-                host: String,
-                port: UInt16)
+                  scheme: FHTTPScheme,
+                  host: String,
+                  port: UInt16)
     {
         self.queue = queue
         self.scheme = scheme
@@ -25,7 +25,15 @@ internal class FHTTPConnection {
         let nwHost = NWEndpoint.Host.name(host, nil)
         let nwPort = NWEndpoint.Port(rawValue: port)!
         let endPoint = NWEndpoint.hostPort(host: nwHost, port: nwPort)
-        let parameters = NWParameters(tls: nil)
+        
+        var tlsOptions: NWProtocolTLS.Options?
+        if scheme == .https {
+            tlsOptions = NWProtocolTLS.Options()
+//            
+//            sec_protocol_options
+//            tlsOptions!.securityProtocolOptions
+        }
+        let parameters = NWParameters(tls: tlsOptions)
         
         self.connection = NWConnection(to: endPoint, using: parameters)
         
@@ -43,7 +51,6 @@ internal class FHTTPConnection {
             connection.forceCancel()
         }
     }
-
     
     internal let queue: DispatchQueue
     internal let connection: NWConnection
@@ -140,11 +147,47 @@ internal class FHTTPConnection {
     internal var session: FHTTPSession?
     
     internal func sendRequestHeader(session: FHTTPSession) {
-        let data = session.onRequestHeaderSend()
-        
-        connection.send(content: data, completion: .contentProcessed({ (error) in
-            self.receiveLoop(error: error)
-        }))
+        do {
+            let data = try session.onRequestHeaderSend()
+            
+            print(String(data: data, encoding: .utf8))
+            
+            connection.send(content: data, completion: .contentProcessed({ (error) in
+                switch session.state {
+                case .requestBodySend:
+                    self.sendBody(session: session, error: error)
+                case .responseHeaderReceive:
+                    self.receiveLoop(error: error)
+                default:
+                    preconditionFailure()
+                }
+            }))
+        } catch {
+            errorHandler?(error)
+            return
+        }
+    }
+    
+    private func sendBody(session: FHTTPSession, error: Error?) {
+        do {
+            if let error = error {
+                throw error
+            }
+            
+            guard let chunk = session.onRequestBodySend() else {
+                self.receiveLoop(error: nil)
+                return
+            }
+            
+            print(String(data: chunk, encoding: .utf8))
+            
+            connection.send(content: chunk, completion: .contentProcessed({ (error) in
+                self.sendBody(session: session, error: error)
+            }))
+        } catch {
+            errorHandler?(error)
+            return
+        }
     }
     
     internal func receiveLoop(error: Error?) {
@@ -166,13 +209,13 @@ internal class FHTTPConnection {
                     var cont = false
                     
                     switch session.state {
-                    case .requestHeaderSent:
+                    case .responseHeaderReceive:
                         cont = try readHeader(session: session)
                     case .responseHeaderReceived:
                         isReceiveLooping = false
                         return
-                    case .responseContentReceive:
-                        try receiveContent(session: session)
+                    case .responseBodyReceive:
+                        try receiveBody(session: session)
                     default:
                         preconditionFailure()
                     }
@@ -231,7 +274,7 @@ internal class FHTTPConnection {
         return true
     }
     
-    private func receiveContent(session: FHTTPSession) throws {
+    private func receiveBody(session: FHTTPSession) throws {
         let length = session.response!.header.contentLength!
         
         if receiveBuffer.count < length {
@@ -240,7 +283,7 @@ internal class FHTTPConnection {
         
         let data = read(length)
         
-        session.onResponseContent(data)
+        session.onResponseBody(data)
         detachSession(session)
     }
     
@@ -281,10 +324,12 @@ internal class FHTTPConnection {
                 guard let statusCode = Int(headParts[1]) else {
                     throw FHTTPError.invalidResponseHeader
                 }
+                let statusMessage = headParts[2...].joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
                 
                 let fieldsString = String(headerString[delimiterRange.upperBound...])
               
                 return FHTTPResponse(statusCode: statusCode,
+                                     statusMessage: statusMessage,
                                      header: FHTTPHeader(from: fieldsString),
                                      data: Data())
             }

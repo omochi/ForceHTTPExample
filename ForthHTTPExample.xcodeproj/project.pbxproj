@@ -24,6 +24,7 @@
 		D65261E020CA33E800283451 /* FHTTPScheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = D65261DF20CA33E800283451 /* FHTTPScheme.swift */; };
 		D65261E220CA70EB00283451 /* FHTTPError.swift in Sources */ = {isa = PBXBuildFile; fileRef = D65261E120CA70EB00283451 /* FHTTPError.swift */; };
 		D65261E420CAC2C400283451 /* FHTTPHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = D65261E320CAC2C400283451 /* FHTTPHeader.swift */; };
+		D65261E620CB3C4200283451 /* FHTTPForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = D65261E520CB3C4200283451 /* FHTTPForm.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -70,6 +71,7 @@
 		D65261DF20CA33E800283451 /* FHTTPScheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FHTTPScheme.swift; sourceTree = "<group>"; };
 		D65261E120CA70EB00283451 /* FHTTPError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FHTTPError.swift; sourceTree = "<group>"; };
 		D65261E320CAC2C400283451 /* FHTTPHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FHTTPHeader.swift; sourceTree = "<group>"; };
+		D65261E520CB3C4200283451 /* FHTTPForm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FHTTPForm.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -132,6 +134,7 @@
 				D65261E320CAC2C400283451 /* FHTTPHeader.swift */,
 				D65261D320CA2BB900283451 /* FHTTPRequest.swift */,
 				D65261DB20CA31DB00283451 /* FHTTPResponse.swift */,
+				D65261E520CB3C4200283451 /* FHTTPForm.swift */,
 				D65261D120CA24CA00283451 /* FHTTPSession.swift */,
 				D65261D720CA2C3A00283451 /* FHTTPService.swift */,
 				D65261D920CA2F9D00283451 /* FHTTPConnection.swift */,
@@ -271,6 +274,7 @@
 				D65261DC20CA31DB00283451 /* FHTTPResponse.swift in Sources */,
 				D65261D620CA2BE200283451 /* FHTTPMethod.swift in Sources */,
 				D65261DA20CA2F9D00283451 /* FHTTPConnection.swift in Sources */,
+				D65261E620CB3C4200283451 /* FHTTPForm.swift in Sources */,
 				D65261E020CA33E800283451 /* FHTTPScheme.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
