@@ -72,7 +72,7 @@ public class FHTTPService {
     
     private func openOrAttachConnection(session: FHTTPSession) {
         let possibleConnections = self.connections
-            .filter { session.isUsable($0) &&
+            .filter { session.isSameEndPoint($0) &&
                 ($0.state == .connecting ||
                     $0.state == .active) }
         if possibleConnections.count == 0 {
@@ -91,12 +91,12 @@ public class FHTTPService {
     }
     
     private func openConnection(request: FHTTPRequest) {
-        log("openConnection: \(request.url.absoluteString)")
-        
         let connection = FHTTPConnection(queue: workQueue,
                                          scheme: request.scheme,
                                          host: request.host,
                                          port: request.connectingPort)
+        log("openConnection: \(connection.endPointString)")
+        
         self.connections.append(connection)
         
         connection.open { (error) in
@@ -134,6 +134,8 @@ public class FHTTPService {
     }
     
     private func closeConnection(_ connection: FHTTPConnection) {
+        log("closeConnection: \(connection.endPointString)")
+
         connection.close {
             self.connections.removeAll { $0 === connection }
         }
@@ -142,7 +144,7 @@ public class FHTTPService {
     private func waitingSessions(for connection: FHTTPConnection) -> [FHTTPSession] {
         return self.sessions.filter {
             $0.state == .connecting &&
-            $0.isUsable(connection)
+            $0.isSameEndPoint(connection)
         }
     }
     

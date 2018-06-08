@@ -71,13 +71,14 @@ public class FHTTPSession {
         return service.connections.first { $0.session === self }
     }
     
-    internal func isUsable(_ connection: FHTTPConnection) -> Bool {
+    internal func isSameEndPoint(_ connection: FHTTPConnection) -> Bool {
         return request.scheme == connection.scheme &&
             request.host == connection.host &&
             request.connectingPort == connection.port
     }
     
     internal func onAttachConnection(_ connection: FHTTPConnection) {
+        print("onAttachConnection: \(connection.endPointString)")
         precondition(state == .connecting)
         
         state = .connected
@@ -120,6 +121,8 @@ public class FHTTPSession {
     }
     
     internal func onDetachConnection(_ connection: FHTTPConnection) {
+        print("onDetachConnection: \(connection.endPointString)")
+
         precondition(state == .completed)
         
         callbackQueue.async {

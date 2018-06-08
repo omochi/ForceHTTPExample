@@ -49,6 +49,17 @@ internal class FHTTPConnection {
     internal let host: String
     internal let port: UInt16
     
+    
+    internal var endPointString: String {
+        var ret = scheme.rawValue + "://" + host
+        
+        if port != scheme.defaultPort {
+            ret += ":" + String(port)
+        }
+        
+        return ret
+    }
+    
     internal var errorHandler: ((Error) -> Void)?
     
     internal func close(handler: @escaping () -> Void) {
@@ -151,7 +162,8 @@ internal class FHTTPConnection {
             let length = session.response!.header.contentLength!
 
             if receiveBuffer.count >= length {
-                let data = self.receiveBuffer[..<length]
+                let data = read(length)
+                
                 session.onResponseContent(data)
                 detachSession(session)
                 return
@@ -203,9 +215,9 @@ internal class FHTTPConnection {
             }
             
             if receiveBuffer[index..<index+4] == separatorData {
-                let headerData = receiveBuffer[..<index]
-                receiveBuffer.removeSubrange(..<(index+4))
-                
+                let headerData = read(index)
+                _ = read(4)
+
                 guard let headerString = String(data: headerData, encoding: .utf8) else {
                     throw FHTTPError.invalidResponseHeader
                 }
@@ -233,5 +245,11 @@ internal class FHTTPConnection {
             
             index += 1
         }
+    }
+    
+    private func read(_ size: Int) -> Data {
+        let ret = receiveBuffer[..<size]
+        receiveBuffer.removeSubrange(..<size)
+        return ret
     }
 }
