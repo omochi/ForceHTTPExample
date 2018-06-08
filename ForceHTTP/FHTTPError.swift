@@ -3,6 +3,8 @@ public enum FHTTPError : Error, CustomStringConvertible {
     case noResponseHeader
     case invalidResponseHeader
     case responseHasNoContentLength
+    case protocolViolation
+    case abnormalTermination
     case connectionClosed
     
     public var description: String {
@@ -15,6 +17,10 @@ public enum FHTTPError : Error, CustomStringConvertible {
             return "response header is invalid format"
         case .responseHasNoContentLength:
             return "response header has no content length"
+        case .protocolViolation:
+            return "server violates protocol"
+        case .abnormalTermination:
+            return "abnormal termination"
         case .connectionClosed:
             return "connection closed"
         }

@@ -9,6 +9,7 @@ public class FHTTPSession {
         case connecting
         case connected
         case requestHeaderSent
+        case responseHeaderReceived
         case responseContentReceive
         case completed
         case failed
@@ -85,7 +86,7 @@ public class FHTTPSession {
     }
 
     internal func onRequestHeaderSend() -> Data {
-//        print("onRequestHeaderSend")
+        print("onRequestHeaderSend")
         var host: String = request.host
         if let port = request.specifiedPort {
             host += ":" + "\(port)"
@@ -94,7 +95,7 @@ public class FHTTPSession {
         var lines = [String]()
         lines.append("\(request.method) \(request.path) HTTP/1.1")
         lines.append("Host: \(host)")
-        //        lines.append("Connection: close")
+        lines.append("Connection: close")
         lines.append("User-Agent: ForthHTTP")
         lines += ["", ""]
         
@@ -107,15 +108,16 @@ public class FHTTPSession {
     }
     
     internal func onResponseHeader(_ response: FHTTPResponse) {
-//        print("onResponseHeader")
+        print("onResponseHeader")
         self.response = response
-        self.state = .responseContentReceive
+        self.state = .responseHeaderReceived
         
+        self.state = .responseContentReceive
         self.service.onSessionReceiveContent(self)
     }
     
     internal func onResponseContent(_ data: Data) {
-//        print("onResponseContent")
+        print("onResponseContent")
         self.response!.data = data
         self.state = .completed
     }

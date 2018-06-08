@@ -43,8 +43,7 @@ public class FHTTPService {
     internal func onSessionReceiveContent(_ session: FHTTPSession) {
         precondition(session.state == .responseContentReceive)
         
-        session.connection!.receiveContent(session: session,
-                                           error: nil)
+        session.connection!.receiveLoop(error: nil)
     }
 
     private func update() {

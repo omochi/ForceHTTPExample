@@ -1,12 +1,17 @@
 import Foundation
 
-public struct FHTTPHeader {
+public struct FHTTPHeader : CustomStringConvertible {
     public struct Entry {
         public var name: String
         public var value: String
     }
     
     public var entries: [Entry]
+    
+    public var description: String {
+        return entries.map { $0.name + ": " + $0.value }
+            .joined(separator: "\n")
+    }
     
     public init() {
         self.entries = []

@@ -42,7 +42,7 @@ public class ViewController: UIViewController {
             }
             
             let html = String(data: response!.data, encoding: .utf8)!
-            print("response:\n\(html)")
+            print("response:\n\(response!.header)\n\(html)")
         }
     }
     

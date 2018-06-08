@@ -30,9 +30,12 @@ internal class FHTTPConnection {
         self.connection = NWConnection(to: endPoint, using: parameters)
         
         self.state = .inited
-                
+        
+        self.isReceiving = false
         self.receiveBuffer = Data()
         self.isReceiveCompleted = false
+        
+        self.isReceiveLooping = false
     }
     
     deinit {
@@ -40,6 +43,7 @@ internal class FHTTPConnection {
             connection.forceCancel()
         }
     }
+
     
     internal let queue: DispatchQueue
     internal let connection: NWConnection
@@ -48,6 +52,15 @@ internal class FHTTPConnection {
     internal let scheme: FHTTPScheme
     internal let host: String
     internal let port: UInt16
+    
+    private var isReceiving: Bool
+    private var i = 0
+    
+    private var isReceiveLooping: Bool
+    
+    private(set) var receiveBuffer: Data
+    private(set) var isReceiveCompleted: Bool
+    
     
     
     internal var endPointString: String {
@@ -130,73 +143,106 @@ internal class FHTTPConnection {
         let data = session.onRequestHeaderSend()
         
         connection.send(content: data, completion: .contentProcessed({ (error) in
-            self.receiveHeader(session: session, error: error)
+            self.receiveLoop(error: error)
         }))
     }
     
-    internal func receiveHeader(session: FHTTPSession, error: Error?) {
-        do {
-            if let error = error {
-                throw error
-            }
-            
-            if let response = try self.tryParseResponse() {
-                session.onResponseHeader(response)
-                return
-            }
-
-            receive { (error) in
-                self.receiveHeader(session: session, error: error)
-            }
-        } catch {
-            self.errorHandler?(error)
-        }
+    internal func receiveLoop(error: Error?) {
+        if isReceiveLooping { return }
+        isReceiveLooping = true
+        _receiveLoop(error: error)
     }
     
-    internal func receiveContent(session: FHTTPSession, error: Error?) {
+    private func _receiveLoop(error: Error?) {
+        precondition(isReceiveLooping)
+        
         do {
             if let error = error {
                 throw error
             }
             
-            let length = session.response!.header.contentLength!
-
-            if receiveBuffer.count >= length {
-                let data = read(length)
+            if let session = self.session {
+                while true {
+                    var cont = false
+                    
+                    switch session.state {
+                    case .requestHeaderSent:
+                        cont = try readHeader(session: session)
+                    case .responseHeaderReceived:
+                        isReceiveLooping = false
+                        return
+                    case .responseContentReceive:
+                        try receiveContent(session: session)
+                    default:
+                        preconditionFailure()
+                    }
+                    
+                    if !cont {
+                        break
+                    }
+                }
+            } else {
+                if receiveBuffer.count > 0 {
+                    throw FHTTPError.protocolViolation
+                }
+            }
+            
+            if isReceiveCompleted {
+                throw FHTTPError.connectionClosed
+            }
+            
+            let maximumLength = 1024 * 1024
+            let captureIndex = self.i
+            self.i += 1
+            print("receive \(captureIndex)")
+            connection.receive(minimumIncompleteLength: 0,
+                               maximumLength: maximumLength)
+            { (data, context, isCompleted, error) in
+                print("receive cb \(captureIndex), \(data?.count)")
                 
-                session.onResponseContent(data)
-                detachSession(session)
-                return
-            }
-            
-            receive { (error) in
-                self.receiveContent(session: session, error: error)
+                if let error = error {
+                    self._receiveLoop(error: error)
+                    return
+                }
+                if let data = data {
+                    self.receiveBuffer.append(data)
+                }
+                if isCompleted {
+                    self.isReceiveCompleted = true
+                }
+                
+                self._receiveLoop(error: nil)
             }
         } catch {
-            self.errorHandler?(error)
+            isReceiveLooping = false
+            
+            errorHandler?(error)
         }
     }
+
+    typealias KeepReading = Bool
     
-    private func receive(handler: @escaping (Error?) -> Void) {
-        connection.receive(minimumIncompleteLength: 0,
-                           maximumLength: 1024 * 1024)
-        { (data, context, isComplete, error) in
-            if let error = error {
-                handler(error)
-                return
-            }
-            if let data = data {
-                self.receiveBuffer.append(data)
-            }
-            if isComplete {
-                self.isReceiveCompleted = true
-            }
-            handler(nil)
+    private func readHeader(session: FHTTPSession) throws -> KeepReading {
+        guard let response = try self.tryParseResponse() else {
+            return false
         }
+
+        session.onResponseHeader(response)
+        return true
     }
     
-    private(set) var receiveBuffer: Data
-    private(set) var isReceiveCompleted: Bool
+    private func receiveContent(session: FHTTPSession) throws {
+        let length = session.response!.header.contentLength!
+        
+        if receiveBuffer.count < length {
+            return
+        }
+        
+        let data = read(length)
+        
+        session.onResponseContent(data)
+        detachSession(session)
+    }
     
     private func tryParseResponse() throws -> FHTTPResponse? {
         if receiveBuffer.count > 1000 * 1000 {
