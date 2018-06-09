@@ -12,12 +12,12 @@ internal class FHTTPConnection {
         case closed
     }
     
-    internal init(queue: DispatchQueue,
+    internal init(owner: FHTTPService,
                   scheme: FHTTPScheme,
                   host: String,
                   port: UInt16)
     {
-        self.queue = queue
+        self.owner = owner
         self.scheme = scheme
         self.host = host
         self.port = port
@@ -29,9 +29,6 @@ internal class FHTTPConnection {
         var tlsOptions: NWProtocolTLS.Options?
         if scheme == .https {
             tlsOptions = NWProtocolTLS.Options()
-//            
-//            sec_protocol_options
-//            tlsOptions!.securityProtocolOptions
         }
         let parameters = NWParameters(tls: tlsOptions)
         
@@ -51,7 +48,7 @@ internal class FHTTPConnection {
         }
     }
     
-    internal let queue: DispatchQueue
+    internal unowned let owner: FHTTPService
     internal let connection: NWConnection
     internal private(set) var state: State
     
@@ -76,8 +73,12 @@ internal class FHTTPConnection {
     
     internal var errorHandler: ((Error) -> Void)?
     
+    internal var chunkSize: Int = 100 * 1024
+    
     internal func close(handler: @escaping () -> Void) {
         state = .closing
+        
+        log("close: => \(owner.activeConnections.count) connections")
         
         session = nil
         errorHandler = nil
@@ -98,6 +99,8 @@ internal class FHTTPConnection {
     internal func open(handler: @escaping (Error?) -> Void) {
         state = .connecting
         
+        log("open: => \(owner.activeConnections.count) connections")
+
         connection.stateUpdateHandler = { (state) in
             switch state {
             case .failed(let error):
@@ -112,7 +115,7 @@ internal class FHTTPConnection {
                 break
             }
         }
-        connection.start(queue: queue)
+        connection.start(queue: owner.workQueue)
     }
     
     internal var error: Error? {
@@ -166,7 +169,7 @@ internal class FHTTPConnection {
                 throw error
             }
             
-            guard let chunk = session.onRequestBodySend() else {
+            guard let chunk = session.onRequestBodySend(maxChunkSize: chunkSize) else {
                 self.receiveLoop(error: nil)
                 return
             }
@@ -205,7 +208,7 @@ internal class FHTTPConnection {
                         isReceiveLooping = false
                         return
                     case .responseBodyReceive:
-                        try receiveBody(session: session)
+                        cont = try receiveBody(session: session)
                     default:
                         preconditionFailure()
                     }
@@ -224,9 +227,8 @@ internal class FHTTPConnection {
                 throw FHTTPError.connectionClosed
             }
             
-            let maximumLength = 1024 * 1024
             connection.receive(minimumIncompleteLength: 0,
-                               maximumLength: maximumLength)
+                               maximumLength: chunkSize)
             { (data, context, isCompleted, error) in
                 if let error = error {
                     self._receiveLoop(error: error)
@@ -259,17 +261,25 @@ internal class FHTTPConnection {
         return true
     }
     
-    private func receiveBody(session: FHTTPSession) throws {
-        let length = session.response!.header.contentLength!
+    private func receiveBody(session: FHTTPSession) throws -> KeepReading {
+        let totalSize = session.response!.header.contentLength!
+        let restSize = totalSize - session.response!.data.count
         
-        if receiveBuffer.count < length {
-            return
+        if restSize == 0 {
+            session.onResponseBody(nil)
+            detachSession(session)
+            return false
         }
         
-        let data = read(length)
+        let chunkSize = min(receiveBuffer.count, restSize)
         
-        session.onResponseBody(data)
-        detachSession(session)
+        if chunkSize == 0 {
+            return false
+        }
+        
+        let chunk = read(chunkSize)
+        session.onResponseBody(chunk)
+        return true
     }
     
     private func tryParseResponse() throws -> FHTTPResponse? {
@@ -327,5 +337,9 @@ internal class FHTTPConnection {
         let ret = receiveBuffer[..<size]
         receiveBuffer.removeSubrange(..<size)
         return ret
+    }
+    
+    private func log(_ message: String) {
+        print("[FHTTPConnection(\(endPointString))] \(message)")
     }
 }

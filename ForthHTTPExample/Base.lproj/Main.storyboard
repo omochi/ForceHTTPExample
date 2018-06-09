@@ -40,12 +40,26 @@ print(a)</string>
                                     <action selector="onRunButton" destination="BYZ-38-t0r" eventType="touchUpInside" id="1Go-IY-Qa4"/>
                                 </connections>
                             </button>
+                            <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="ZkL-Fi-tsC">
+                                <rect key="frame" x="16" y="250" width="60" height="30"/>
+                                <color key="backgroundColor" white="0.90000000000000002" alpha="1" colorSpace="calibratedWhite"/>
+                                <constraints>
+                                    <constraint firstAttribute="height" constant="30" id="CCb-My-m0H"/>
+                                    <constraint firstAttribute="width" constant="60" id="RNJ-WS-fEp"/>
+                                </constraints>
+                                <state key="normal" title="test1"/>
+                                <connections>
+                                    <action selector="onTest1" destination="BYZ-38-t0r" eventType="touchUpInside" id="S7b-64-REO"/>
+                                </connections>
+                            </button>
                         </subviews>
                         <color key="backgroundColor" red="1" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                         <constraints>
                             <constraint firstItem="6b4-CI-78V" firstAttribute="leading" secondItem="6Tk-OE-BBY" secondAttribute="leading" constant="16" id="0gE-ge-Ian"/>
+                            <constraint firstItem="ZkL-Fi-tsC" firstAttribute="leading" secondItem="6Tk-OE-BBY" secondAttribute="leading" constant="16" id="2JW-Rr-7ru"/>
                             <constraint firstItem="6b4-CI-78V" firstAttribute="top" secondItem="g4f-2W-CMK" secondAttribute="bottom" constant="16" id="bEI-uB-WeW"/>
                             <constraint firstItem="6Tk-OE-BBY" firstAttribute="trailing" secondItem="g4f-2W-CMK" secondAttribute="trailing" constant="16" id="cAu-eG-icR"/>
+                            <constraint firstItem="ZkL-Fi-tsC" firstAttribute="top" secondItem="6b4-CI-78V" secondAttribute="bottom" constant="40" id="gNQ-6H-8t9"/>
                             <constraint firstItem="g4f-2W-CMK" firstAttribute="top" secondItem="6Tk-OE-BBY" secondAttribute="top" constant="16" id="kBI-Lh-ZLB"/>
                             <constraint firstItem="g4f-2W-CMK" firstAttribute="leading" secondItem="6Tk-OE-BBY" secondAttribute="leading" constant="16" id="oOn-cg-j10"/>
                         </constraints>

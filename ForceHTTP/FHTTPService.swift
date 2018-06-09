@@ -92,12 +92,10 @@ public class FHTTPService {
     }
     
     private func openConnection(request: FHTTPRequest) {
-        let connection = FHTTPConnection(queue: workQueue,
+        let connection = FHTTPConnection(owner: self,
                                          scheme: request.scheme,
                                          host: request.host,
-                                         port: request.connectingPort)
-        log("openConnection: \(connection.endPointString)")
-        
+                                         port: request.connectingPort)        
         self.connections.append(connection)
         
         connection.open { (error) in
@@ -135,8 +133,6 @@ public class FHTTPService {
     }
     
     private func closeConnection(_ connection: FHTTPConnection) {
-        log("closeConnection: \(connection.endPointString)")
-
         connection.close {
             self.connections.removeAll { $0 === connection }
         }
@@ -152,7 +148,13 @@ public class FHTTPService {
     internal private(set) var sessions: [FHTTPSession] = []
     internal private(set) var connections: [FHTTPConnection] = []
     
+    internal var activeConnections: [FHTTPConnection] {
+        return connections
+            .filter { $0.state == .connecting ||
+                $0.state == .active }
+    }
+    
     private func log(_ message: String) {
-//        print("[FHTTPService] \(message)")
+        print("[FHTTPService] \(message)")
     }
 }

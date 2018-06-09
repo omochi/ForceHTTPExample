@@ -60,11 +60,40 @@ public class ViewController: UIViewController {
         
         runSwift(code: code) { (result, error) in
             if let error = error {
-                self.showAlert("エラー", "\(error)")
+                self.showAlert("error", "\(error)")
                 return
             }
             
             self.showAlert(nil, result!)
+        }
+    }
+    
+    @IBAction public func onTest1() {
+        let urlStrs: [String] = [
+            "https://www.apple.com/v/imac-pro/b/images/overview/graphics_large_2x.jpg",
+            "https://www.apple.com/v/imac-pro/b/images/overview/audio_state_2_large_2x.jpg",
+            "https://www.apple.com/v/imac-pro/b/images/overview/graphics_app4_large_2x.jpg",
+            "https://www.apple.com/v/imac-pro/b/images/overview/graphics_app3_large_2x.jpg",
+            "https://www.apple.com/v/imac-pro/b/images/overview/graphics_app2_large_2x.jpg",
+            "https://www.apple.com/v/imac-pro/b/images/overview/graphics_app1_large_2x.jpg",
+            "https://www.apple.com/v/imac-pro/b/images/overview/storage_break_large_2x.jpg",
+            "https://www.apple.com/v/imac-pro/b/images/overview/processor_break_large_2x.jpg"
+        ]
+        let urls: [URL] = urlStrs.map { URL(string: $0)! }
+        let requests: [FHTTPRequest] = urls.map { FHTTPRequest(url: $0) }
+        
+        requests.forEach { request in
+            request.session().start { (response, error) in
+                if let error = error {
+                    self.showAlert("error", "\(error)")
+                    return
+                }
+                
+                let image = UIImage(data: response!.data)!
+                print("\(request.url.lastPathComponent): size=\(image.size)")
+            }
+            
+            
         }
     }
     

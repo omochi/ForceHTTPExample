@@ -125,7 +125,7 @@ public class FHTTPSession {
     }
     
     internal func onAttachConnection(_ connection: FHTTPConnection) {
-//        print("onAttachConnection: \(connection.endPointString)")
+        log("attach: \(connection.endPointString)")
         precondition(state == .connecting)
         
         state = .connected
@@ -168,10 +168,9 @@ public class FHTTPSession {
         return data
     }
     
-    internal func onRequestBodySend() -> Data? {
+    internal func onRequestBodySend(maxChunkSize: Int) -> Data? {
         let data = request.postBody!
-        let chunkSize = min(data.count - sentBodySize,
-                            1024 * 1024)
+        let chunkSize = min(data.count - sentBodySize, maxChunkSize)
         if chunkSize == 0 {
             state = .responseHeaderReceive
             return nil
@@ -192,14 +191,19 @@ public class FHTTPSession {
         self.service.onSessionReceiveContent(self)
     }
     
-    internal func onResponseBody(_ data: Data) {
-//        print("onResponseContent")
-        self.response!.data = data
-        self.state = .completed
+    internal func onResponseBody(_ data: Data?) {
+        precondition(state == .responseBodyReceive)
+        
+        if let data = data {
+            response!.data.append(data)
+            log("response: +\(data.count) => \(response!.data.count)/\(response!.header.contentLength!) bytes")
+        } else {
+            self.state = .completed
+        }
     }
     
     internal func onDetachConnection(_ connection: FHTTPConnection) {
-//        print("onDetachConnection: \(connection.endPointString)")
+        log("detach: \(connection.endPointString)")
 
         precondition(state == .completed)
         
@@ -252,5 +256,9 @@ public class FHTTPSession {
             
             self.close()
         }
+    }
+    
+    private func log(_ message: String) {
+        print("[FHTTPSession(\(request.url.absoluteString)]\n    \(message)")
     }
 }
