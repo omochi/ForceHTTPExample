@@ -19,6 +19,28 @@ public struct FHTTPForm {
     
     public var entries: [Entry]
     
+    public subscript(name: String) -> String? {
+        get {
+            guard let index = (entries.firstIndex { $0.name == name }) else {
+                return nil
+            }
+            return entries[index].value
+        }
+        set {
+            guard let newValue = newValue else {
+                entries.removeAll { $0.name == name }
+                return
+            }
+            
+            guard let index = (entries.firstIndex { $0.name == name }) else {
+                entries.append(.init(name: name, value: newValue))
+                return
+            }
+            
+            entries[index].value = newValue
+        }
+    }
+    
     public static let contentType: String = "application/x-www-form-urlencoded"
     
     public func postBody() -> Data {

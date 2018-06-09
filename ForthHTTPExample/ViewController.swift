@@ -9,55 +9,70 @@
 import UIKit
 import ForceHTTP
 
+struct RunAPIResponse : Decodable {
+    var output: String
+    var errors: String
+}
+
+func runSwift(code: String,
+              handler: @escaping (String?, Error?) -> Void)
+{
+    var form = FHTTPForm()
+    form["toolchain_version"] = "4.1.1"
+    form["code"] = code
+
+    var request = FHTTPRequest(url: URL(string: "https://swift-playground.kishikawakatsumi.com/run")!,
+                               method: .post)
+    request.setPostBody(contentType: FHTTPForm.contentType, data: form.postBody())
+    let session = request.session()
+    session.start { (response, error) in
+        do {
+            if let error = error {
+                throw error
+            }
+            
+            let decoder = JSONDecoder()
+            let apiRes = try decoder.decode(RunAPIResponse.self, from: response!.data)
+            if !apiRes.errors.isEmpty {
+                handler(apiRes.errors, nil)
+                return
+            }
+            
+            handler(apiRes.output, nil)            
+        } catch {
+            handler(nil, error)
+            return
+        }
+    }
+}
+
 public class ViewController: UIViewController {
    
+    @IBOutlet public var textView: UITextView!
+    
     public override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view, typically from a nib.
     }
 
-    @IBAction public func onATSButton() {
-        let url = URL(string: "http://swift-playground.kishikawakatsumi.com")!
-        let session = URLSession(configuration: URLSessionConfiguration.ephemeral,
-                                 delegate: nil,
-                                 delegateQueue: OperationQueue.main)
-        let task = session.dataTask(with: url) { (data, response, error) in
-            if let error = error {
-                self.showAlert("\(error)")
-                return
-            }
-        }
-        task.resume()
-    }
-
-    @IBAction public func onFHTTP() {
-        let code = """
-let a = 1 + 1
-print(String(a))
-"""
-        var form = FHTTPForm()
-        form.entries.append(FHTTPForm.Entry(name: "toolchain_version", value: "4.1.1"))
-        form.entries.append(FHTTPForm.Entry(name: "code", value: code))
+    @IBAction public func onRunButton() {
+        let code = textView.text ?? ""
         
-        var request = FHTTPRequest(url: URL(string: "https://swift-playground.kishikawakatsumi.com/run")!,
-                                   method: .post)
-        request.setPostBody(contentType: FHTTPForm.contentType, data: form.postBody())
-        let session = request.session()
-        session.start { (response, error) in
+        runSwift(code: code) { (result, error) in
             if let error = error {
-                self.showAlert("\(error)")
+                self.showAlert("エラー", "\(error)")
                 return
             }
             
-            let html = String(data: response!.data, encoding: .utf8)!
-            print("response:\n\(response!.header)\n\(html)")
+            self.showAlert(nil, result!)
         }
     }
     
-    private func showAlert(_ message: String) {
-        let a = UIAlertController(title: nil, message: message, preferredStyle: UIAlertController.Style.alert)
+    private func showAlert(_ title: String?, _ message: String) {
+        let a = UIAlertController(title: title, message: message, preferredStyle: UIAlertController.Style.alert)
         a.addAction(UIAlertAction(title: "OK", style: UIAlertAction.Style.default, handler: nil))
         self.present(a, animated: true, completion: nil)
     }
+
 }
 

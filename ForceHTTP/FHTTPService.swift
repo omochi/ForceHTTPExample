@@ -153,6 +153,6 @@ public class FHTTPService {
     internal private(set) var connections: [FHTTPConnection] = []
     
     private func log(_ message: String) {
-        print("[FHTTPService] \(message)")
+//        print("[FHTTPService] \(message)")
     }
 }

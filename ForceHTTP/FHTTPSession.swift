@@ -125,14 +125,14 @@ public class FHTTPSession {
     }
     
     internal func onAttachConnection(_ connection: FHTTPConnection) {
-        print("onAttachConnection: \(connection.endPointString)")
+//        print("onAttachConnection: \(connection.endPointString)")
         precondition(state == .connecting)
         
         state = .connected
     }
 
     internal func onRequestHeaderSend() throws -> Data {
-        print("onRequestHeaderSend")
+//        print("onRequestHeaderSend")
         
         let request = self.currentRequest
         
@@ -184,7 +184,7 @@ public class FHTTPSession {
     }
     
     internal func onResponseHeader(_ response: FHTTPResponse) {
-        print("onResponseHeader")
+//        print("onResponseHeader")
         self.response = response
         self.state = .responseHeaderReceived
         
@@ -193,13 +193,13 @@ public class FHTTPSession {
     }
     
     internal func onResponseBody(_ data: Data) {
-        print("onResponseContent")
+//        print("onResponseContent")
         self.response!.data = data
         self.state = .completed
     }
     
     internal func onDetachConnection(_ connection: FHTTPConnection) {
-        print("onDetachConnection: \(connection.endPointString)")
+//        print("onDetachConnection: \(connection.endPointString)")
 
         precondition(state == .completed)
         

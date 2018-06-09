@@ -39,7 +39,6 @@ internal class FHTTPConnection {
         
         self.state = .inited
         
-        self.isReceiving = false
         self.receiveBuffer = Data()
         self.isReceiveCompleted = false
         
@@ -60,16 +59,11 @@ internal class FHTTPConnection {
     internal let host: String
     internal let port: UInt16
     
-    private var isReceiving: Bool
-    private var i = 0
-    
     private var isReceiveLooping: Bool
     
     private(set) var receiveBuffer: Data
     private(set) var isReceiveCompleted: Bool
-    
-    
-    
+
     internal var endPointString: String {
         var ret = scheme.rawValue + "://" + host
         
@@ -150,8 +144,6 @@ internal class FHTTPConnection {
         do {
             let data = try session.onRequestHeaderSend()
             
-            print(String(data: data, encoding: .utf8))
-            
             connection.send(content: data, completion: .contentProcessed({ (error) in
                 switch session.state {
                 case .requestBodySend:
@@ -178,8 +170,6 @@ internal class FHTTPConnection {
                 self.receiveLoop(error: nil)
                 return
             }
-            
-            print(String(data: chunk, encoding: .utf8))
             
             connection.send(content: chunk, completion: .contentProcessed({ (error) in
                 self.sendBody(session: session, error: error)
@@ -235,14 +225,9 @@ internal class FHTTPConnection {
             }
             
             let maximumLength = 1024 * 1024
-            let captureIndex = self.i
-            self.i += 1
-            print("receive \(captureIndex)")
             connection.receive(minimumIncompleteLength: 0,
                                maximumLength: maximumLength)
             { (data, context, isCompleted, error) in
-                print("receive cb \(captureIndex), \(data?.count)")
-                
                 if let error = error {
                     self._receiveLoop(error: error)
                     return
