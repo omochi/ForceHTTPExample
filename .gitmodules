@@ -1,0 +1,3 @@
+[submodule "Carthage/Checkouts/ForceHTTP"]
+	path = Carthage/Checkouts/ForceHTTP
+	url = https://github.com/omochi/ForceHTTP.git
